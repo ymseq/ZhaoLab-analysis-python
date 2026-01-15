@@ -25,7 +25,6 @@ class Params:
     len_after_lick: int = 10 * 10
 
     # gaussian smooth
-    gaussian_range: int = 10
     gaussian_sigma: int = 10
 
     # PCA
@@ -46,12 +45,12 @@ class Params:
     # Presets
     TT_PRESETS: Dict[str, List[str]] = field(default_factory=lambda: {
         "basic": [
-            "origin_ACB", "origin_BCA",
+            "couple_ACB", "couple_BCA",
             "pattern_CAB", "pattern_CBA", "pattern_ACB", "pattern_BCA", "pattern_ABC", "pattern_BAC",
             "position_CAB", "position_CBA", "position_ACB", "position_BCA", "position_ABC", "position_BAC",
         ],
         "merge": [
-            "origin",
+            "couple",
             "pattern_1", "pattern_2", "pattern_3",
             "position_1", "position_2", "position_3",
         ],
@@ -103,6 +102,10 @@ class Params:
         return cur
 
     # -------------------- derived values (dynamic) --------------------
+    # @property
+    # def gaussian_range(self) -> int:
+    #     return 2 * int(3 * self.gaussian_sigma) + 1
+    
     @property
     def len_track(self) -> int:
         return self.track_range[1] - self.track_range[0]

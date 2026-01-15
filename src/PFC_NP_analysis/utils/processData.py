@@ -93,12 +93,12 @@ def _gaussian_1d_kernel(length: int, sigma: float) -> np.ndarray:
     return (g / s) if s > 0 else g
 
 
-def align_track(data: Dict, params: Params, is_gaussian: bool = True):
+def align_track(data: Dict, params: Params, is_clip: bool = True, is_gaussian: bool = True):
     
-    # Process the whole data
-    g1d = _gaussian_1d_kernel(params.gaussian_range, params.gaussian_sigma)
-    # 1 * k
-    g2d = np.reshape(g1d, (1, g1d.size))
+    # # Process the whole data
+    # g1d = _gaussian_1d_kernel(params.gaussian_range, params.gaussian_sigma)
+    # # 1 * k
+    # g2d = np.reshape(g1d, (1, g1d.size))
     
     aligned_firing = np.empty_like(data["simple_firing"],dtype=object)
     
@@ -120,21 +120,28 @@ def align_track(data: Dict, params: Params, is_gaussian: bool = True):
         
         # clip, keep the track within the setted range
         # fr: [num_neurons, len_track]
-        fr = fr[:, params.track_range[0]:params.track_range[1]]
-        
-        k = params.len_pos_average
-        fr = resample_poly(fr, up=1, down=k, axis=1)
 
         if is_gaussian:
-            fr = convolve(fr, g2d, mode='same')
+            fr = gaussian_filter1d(fr, sigma=params.gaussian_sigma, axis=1, mode="nearest", truncate=3.0)
+
+        if is_clip:
+            fr = fr[:, params.track_range[0]:params.track_range[1]]
+        
+        k = params.len_pos_average
+        if k != 1:
+            fr = resample_poly(fr, up=1, down=k, axis=1)
 
         aligned_firing[index] = fr
     
     aligned_zones_id = np.empty_like(data["zones"],dtype=int)
     zones = data["zones"]
     for i in range(len(zones)):
-        start = int((zones[i][0] / params.space_unit - params.track_range[0]) / params.len_pos_average) - 1
-        end = int((zones[i][1] / params.space_unit - params.track_range[0]) / params.len_pos_average) + 1
+        if is_clip:
+            offset = params.track_range[0]
+        else:
+            offset = 0
+        start = int((zones[i][0] / params.space_unit - offset) / params.len_pos_average) - 1
+        end = int((zones[i][1] / params.space_unit - offset) / params.len_pos_average) + 1
         start = max(start, 0)
         end = min(end, int(params.len_track / params.len_pos_average))
         aligned_zones_id[i] = [start, end]

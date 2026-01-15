@@ -9,6 +9,8 @@ from .config import Params
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import ipywidgets as widgets
+from IPython.display import display, clear_output
 
 ColorLike = Union[str, List[float], Tuple[float, float, float]]
 
@@ -479,6 +481,7 @@ def plot_neuron_id(
     ana_tt: List[str],
     ana_bt: List[str],
     id: int,
+    color_map: dict[str, str] = None,
 ):
 
     zones = data["aligned_zones_id"]
@@ -527,3 +530,40 @@ def plot_neuron_id(
 
     plt.tight_layout()
     plt.show()
+
+
+def browse_neurons(data, params, ana_tt=['*'], ana_bt=['correct'], id_min=0, id_max=None):
+    for index in params.ana_index_grid(ana_tt, ana_bt):
+        fr = data["aligned_firing"][index]
+        if fr is not None:
+            n_neurons = fr.shape[0]
+            break
+    else:
+        raise ValueError("No valid fr found for given ana_tt/ana_bt")
+
+    if id_max is None:
+        id_max = n_neurons - 1
+
+    slider = widgets.IntSlider(value=id_min, min=id_min, max=id_max, step=1,
+                               description='Neuron id', continuous_update=False)
+    btn_prev = widgets.Button(description='◀ Prev', layout=widgets.Layout(width='80px'))
+    btn_next = widgets.Button(description='Next ▶', layout=widgets.Layout(width='80px'))
+    out = widgets.Output()
+
+    def render(_=None):
+        with out:
+            clear_output(wait=True)
+            plot_neuron_id(data, params, ana_tt=ana_tt, ana_bt=ana_bt, id=slider.value)
+
+    def on_prev(_):
+        slider.value = max(slider.min, slider.value - 1)
+
+    def on_next(_):
+        slider.value = min(slider.max, slider.value + 1)
+
+    btn_prev.on_click(on_prev)
+    btn_next.on_click(on_next)
+    slider.observe(render, names='value')
+
+    display(widgets.HBox([btn_prev, slider, btn_next]), out)
+    render()
