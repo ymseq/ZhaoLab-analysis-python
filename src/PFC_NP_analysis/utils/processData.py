@@ -78,20 +78,6 @@ def _concat_safe(a: np.ndarray | None, b: np.ndarray | None, axis: int = 0) -> n
 
     if a is not None and b is not None:
         return np.concatenate((a, b), axis=axis)
-    
-
-def _gaussian_1d_kernel(length: int, sigma: float) -> np.ndarray:
-    """
-    Create a 1D Gaussian kernel of given length and std, normalized to sum=1.
-    """
-    if length <= 1:
-        return np.array([1.0], dtype=float)
-    # symmetric grid centered at (length-1)/2
-    x = np.arange(length, dtype=float) - (length - 1) / 2.0
-    g = np.exp(-(x ** 2) / (2.0 * (sigma ** 2)))
-    s = g.sum()
-    return (g / s) if s > 0 else g
-
 
 def align_track(data: Dict, params: Params, is_clip: bool = True, is_gaussian: bool = True):
     
