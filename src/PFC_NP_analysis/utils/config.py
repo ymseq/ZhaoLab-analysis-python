@@ -25,7 +25,7 @@ class Params:
     len_after_lick: int = 10 * 10
 
     # gaussian smooth
-    gaussian_sigma: int = 10
+    gaussian_sigma: int = 50
 
     # PCA
     pca_n_components: int = 20
