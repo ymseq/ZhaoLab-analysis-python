@@ -57,6 +57,57 @@ def _validate_lines(x_lines: Sequence[Sequence[float]],
             raise ValueError(f"Line {i}: x/y/z length mismatch ({len(x)}/{len(y)}/{len(z)}).")
         if len(x) == 0:
             raise ValueError(f"Line {i} is empty.")
+        
+
+def _add_triangle_mesh_marker(
+    fig,
+    x0, y0, z0,
+    direction=(0, 0, 1),
+    size=0.5,
+    color="#ff6600",
+    name="start",
+    legendgroup=None,
+    showlegend=False,
+    opacity=1.0,
+):
+    p = np.array([x0, y0, z0], dtype=float)
+
+    n = np.array(direction, dtype=float)
+    nn = np.linalg.norm(n)
+    if nn == 0:
+        n = np.array([0.0, 0.0, 1.0])
+        nn = 1.0
+    n = n / nn
+
+    a = np.array([1.0, 0.0, 0.0])
+    if abs(np.dot(a, n)) > 0.9:
+        a = np.array([0.0, 1.0, 0.0])
+
+    u = np.cross(n, a)
+    u = u / (np.linalg.norm(u) or 1.0)
+    v = np.cross(n, u)
+    v = v / (np.linalg.norm(v) or 1.0)
+
+    tip = p + n * size * 0.70
+    base_center = p - n * size * 0.30
+    left = base_center + u * size * 0.60
+    right = base_center - u * size * 0.60
+
+    xs = [tip[0], left[0], right[0]]
+    ys = [tip[1], left[1], right[1]]
+    zs = [tip[2], left[2], right[2]]
+
+    fig.add_trace(go.Mesh3d(
+        x=xs, y=ys, z=zs,
+        i=[0], j=[1], k=[2],
+        color=color,
+        opacity=opacity,
+        flatshading=True,
+        name=name,
+        legendgroup=legendgroup,
+        showlegend=showlegend,
+        hoverinfo="skip",
+    ))
 
 
 def plot3d_lines_to_html(
@@ -72,10 +123,10 @@ def plot3d_lines_to_html(
     segment_per_line: Optional[Sequence[Tuple[int, int, ColorLike]]] = None,
     segment_labels: Optional[Sequence[str]] = None,
     marker_count: int = 25,
-    marker_size: int = 2,
-    start_marker_size: int = 5,
-    end_marker_size: int = 5,
-    line_width: int = 4,
+    marker_size: float = 2,
+    start_marker_size: float = 5,
+    end_marker_size: float = 5,
+    line_width: float = 4,
 ):
     """
     Plot 3D polylines to an HTML file. Supports *shared segmentation* coloring
@@ -165,7 +216,7 @@ def plot3d_lines_to_html(
                 fig.add_trace(go.Scatter3d(
                     x=x[s:e], y=y[s:e], z=z[s:e],
                     mode="lines",
-                    line=dict(width=line_width, color=seg_hex),
+                    line=dict(width=line_width + 1, color=seg_hex),
                     name=base_label,
                     legendgroup=group_id,
                     showlegend=False,
@@ -180,30 +231,40 @@ def plot3d_lines_to_html(
                 showlegend=True,
             ))
 
-        mk = np.unique(np.round(np.linspace(0, T - 1, int(min(T, max(marker_count, 1)))))).astype(int)
-        fig.add_trace(go.Scatter3d(
-            x=x[mk], y=y[mk], z=z[mk],
-            mode="markers",
-            marker=dict(size=marker_size, color="white", line=dict(color=base_hex, width=1)),
-            name=f"{base_label} marks",
-            legendgroup=group_id,
-            showlegend=False,
-        ))
+        # mk = np.unique(np.round(np.linspace(0, T - 1, int(min(T, max(marker_count, 1)))))).astype(int)
+        # fig.add_trace(go.Scatter3d(
+        #     x=x[mk], y=y[mk], z=z[mk],
+        #     mode="markers",
+        #     marker=dict(size=marker_size, color="white", line=dict(color=base_hex, width=1)),
+        #     name=f"{base_label} marks",
+        #     legendgroup=group_id,
+        #     showlegend=False,
+        # ))
 
         # ---------- Start point ----------
-        fig.add_trace(go.Scatter3d(
-            x=[x[0]], y=[y[0]], z=[z[0]],
-            mode="markers",
-            marker=dict(
-                size=start_marker_size,
-                color="red",
-                symbol="x",
-                line=dict(color=base_hex, width=1),
-            ),
+        # fig.add_trace(go.Scatter3d(
+        #     x=[x[0]], y=[y[0]], z=[z[0]],
+        #     mode="markers",
+        #     marker=dict(
+        #         size=start_marker_size,
+        #         color=base_hex,
+        #         symbol="triangle-up",
+        #         line=dict(color=base_hex, width=1),
+        #     ),
+        #     name=f"{base_label} start",
+        #     legendgroup=group_id,
+        #     showlegend=False,
+        # ))
+        
+        _add_triangle_mesh_marker(
+            fig, x[0], y[0], z[0],
+            direction=(0, 0, 1),
+            size=start_marker_size,
+            color=base_hex,
             name=f"{base_label} start",
             legendgroup=group_id,
             showlegend=False,
-        ))
+        )
 
         # ---------- End point ----------
         fig.add_trace(go.Scatter3d(
@@ -211,8 +272,8 @@ def plot3d_lines_to_html(
             mode="markers",
             marker=dict(
                 size=end_marker_size,
-                color="black",
-                symbol="square",
+                color=base_hex,
+                symbol="circle",
                 line=dict(color=base_hex, width=1),
             ),
             name=f"{base_label} end",
