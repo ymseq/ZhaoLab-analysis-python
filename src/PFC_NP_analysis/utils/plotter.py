@@ -204,6 +204,7 @@ def plot3d_lines_to_html(
                 x=x, y=y, z=z,
                 mode="lines",
                 line=dict(width=line_width, color=base_hex),
+                opacity=0.7,
                 name=base_label,
                 legendgroup=group_id,
                 showlegend=True,
@@ -216,7 +217,7 @@ def plot3d_lines_to_html(
                 fig.add_trace(go.Scatter3d(
                     x=x[s:e], y=y[s:e], z=z[s:e],
                     mode="lines",
-                    line=dict(width=line_width + 1, color=seg_hex),
+                    line=dict(width=line_width * 1.5, color=seg_hex),
                     name=base_label,
                     legendgroup=group_id,
                     showlegend=False,
@@ -256,33 +257,64 @@ def plot3d_lines_to_html(
         #     showlegend=False,
         # ))
         
-        _add_triangle_mesh_marker(
-            fig, x[0], y[0], z[0],
-            direction=(0, 0, 1),
-            size=start_marker_size,
-            color=base_hex,
+        # _add_triangle_mesh_marker(
+        #     fig, x[0], y[0], z[0],
+        #     direction=(0, 0, 1),
+        #     size=start_marker_size,
+        #     color=base_hex,
+        #     name=f"{base_label} start",
+        #     legendgroup=group_id,
+        #     showlegend=False,
+        # )
+        
+        fig.add_trace(go.Scatter3d(
+            x=[x[0]], y=[y[0]], z=[z[0]],
+            mode="text",
+            text=["▲"],
+            textfont=dict(
+                size=start_marker_size,
+                color=base_hex,
+                family="Arial",
+            ),
+            textposition="middle center",
             name=f"{base_label} start",
             legendgroup=group_id,
             showlegend=False,
-        )
+            hoverinfo="skip",
+        ))
 
-        # ---------- End point ----------
+
+        # # ---------- End point ----------
+        # fig.add_trace(go.Scatter3d(
+        #     x=[x[-1]], y=[y[-1]], z=[z[-1]],
+        #     mode="markers",
+        #     marker=dict(
+        #         size=end_marker_size,
+        #         color=base_hex,
+        #         symbol="circle",
+        #         line=dict(color=base_hex, width=1),
+        #     ),
+        #     name=f"{base_label} end",
+        #     legendgroup=group_id,
+        #     showlegend=False,
+        # ))
         fig.add_trace(go.Scatter3d(
             x=[x[-1]], y=[y[-1]], z=[z[-1]],
-            mode="markers",
-            marker=dict(
-                size=end_marker_size,
+            mode="text",
+            text=["●"],
+            textfont=dict(
+                size=start_marker_size,
                 color=base_hex,
-                symbol="circle",
-                line=dict(color=base_hex, width=1),
+                family="Arial",
             ),
-            name=f"{base_label} end",
+            textposition="middle center",
+            name=f"{base_label} start",
             legendgroup=group_id,
             showlegend=False,
+            hoverinfo="skip",
         ))
 
     fig.update_layout(
-        title= "Interactive 3D Trajectories" if title is None else title,
         scene= dict(xaxis_title="PC1", yaxis_title="PC2", zaxis_title="PC3") if axis_labels is None else axis_labels,
         template="plotly_white",
         margin=dict(l=0, r=0, t=48, b=0),
