@@ -7,7 +7,7 @@ def pca_fit(
     data: np.ndarray,
     pca_num: int,
     weights: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     (Weighted) PCA fit that returns principal component loadings and the projection matrix.
 
@@ -73,7 +73,7 @@ def pca_fit(
     partial = pcs[:, :k]               # (N, k)
     denoise_matrix = partial @ partial.T  # (N, N)
 
-    return pcs, denoise_matrix
+    return pcs, denoise_matrix, mu
 
 
 def umap_fit(
