@@ -5,7 +5,6 @@ import re
 import math
 import matplotlib.pyplot as plt
 from typing import Any, Dict, List, Iterable
-from .config import Params
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
@@ -490,27 +489,27 @@ def plot2d_lines_to_html(
             )
 
         # ---------- Sampled markers along the line ----------
-        # mk = np.unique(
-        #     np.round(
-        #         np.linspace(0, T - 1, int(min(T, max(marker_count, 1))))
-        #     )
-        # ).astype(int)
+        mk = np.unique(
+            np.round(
+                np.linspace(0, T - 1, int(min(T, max(marker_count, 1))))
+            )
+        ).astype(int)
 
-        # fig.add_trace(
-        #     go.Scatter(
-        #         x=x[mk],
-        #         y=y[mk],
-        #         mode="markers",
-        #         marker=dict(
-        #             size=marker_size,
-        #             color="white",
-        #             line=dict(color=base_hex, width=1),
-        #         ),
-        #         name=f"{base_label} marks",
-        #         legendgroup=group_id,
-        #         showlegend=False,
-        #     )
-        # )
+        fig.add_trace(
+            go.Scatter(
+                x=x[mk],
+                y=y[mk],
+                mode="markers",
+                marker=dict(
+                    size=marker_size,
+                    color="white",
+                    line=dict(color=base_hex, width=1),
+                ),
+                name=f"{base_label} marks",
+                legendgroup=group_id,
+                showlegend=False,
+            )
+        )
 
         # ---------- Start point ----------
         fig.add_trace(
@@ -574,12 +573,12 @@ def plot_neuron_id(
     ana_tt: List[str],
     ana_bt: List[str],
     id: int,
-    color_map: None | dict[str, str] = None,
+    color_map: dict[str, str] = None,
 ):
 
     zones = data["aligned_zones_id"]
 
-    indices = params.ana_index_grid(ana_tt, ana_bt)
+    indices: Iterable[int] = params.ana_index_grid(ana_tt, ana_bt)
 
     tracks: List[np.ndarray] = []
     labels: List[str] = []
