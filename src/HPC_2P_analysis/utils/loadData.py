@@ -465,10 +465,30 @@ def normalize_index_value(value: Any) -> np.ndarray:
         )
 
     arr = np.asarray(arr, dtype=float).ravel()
-    arr = arr[~np.isnan(arr)]
+    nan_mask = np.isnan(arr)
 
-    if arr.size == 0:
+    if nan_mask.all():
         return empty_index()
+
+    if nan_mask.any():
+        raise ValueError(
+            f"Trial index mixes NaN with valid values: {arr}."
+        )
+
+    if not np.isfinite(arr).all():
+        raise ValueError(
+            f"Trial index contains Inf values: {arr}."
+        )
+
+    if not np.equal(arr, np.floor(arr)).all():
+        raise ValueError(
+            f"Trial index contains non-integer values: {arr}."
+        )
+
+    if (arr <= 0).any():
+        raise ValueError(
+            f"Trial index must contain positive 1-based values: {arr}."
+        )
 
     return arr.astype(int)
 
@@ -690,6 +710,80 @@ def validate_standard_data(data: dict) -> None:
         file_path=file_info.get("file_path", None),
     )
 
+    cell_ids = np.asarray(data["cell_ids"])
+
+    if cell_ids.ndim != 1:
+        raise ValueError(
+            f"cell_ids should be 1D, got shape {cell_ids.shape}."
+        )
+
+    if len(np.unique(cell_ids)) != len(cell_ids):
+        raise ValueError("cell_ids contain duplicate values.")
+
+    if np.issubdtype(cell_ids.dtype, np.number):
+        cell_ids_float = np.asarray(cell_ids, dtype=float)
+
+        if not np.isfinite(cell_ids_float).all():
+            raise ValueError("cell_ids contain NaN or Inf values.")
+
+    zones = np.asarray(data["zones"], dtype=float)
+
+    if zones.size == 0 or not np.isfinite(zones).all():
+        raise ValueError("zones are empty or contain NaN/Inf values.")
+
+    n_neuron = len(cell_ids)
+    n_position = set()
+
+    for tt_idx, track_name in enumerate(track_type):
+        for bt_idx, behavior_name in enumerate(behavior_type):
+            fr = np.asarray(data["firing"][tt_idx, bt_idx])
+            idx = np.asarray(data["index"][tt_idx, bt_idx])
+
+            if fr.shape[0] != n_neuron:
+                raise ValueError(
+                    f"Neuron number mismatch for track={track_name!r}, "
+                    f"behavior={behavior_name!r}: firing has {fr.shape[0]} "
+                    f"neurons but cell_ids has {n_neuron}."
+                )
+
+            if not np.issubdtype(fr.dtype, np.number):
+                raise TypeError(
+                    f"Firing must be numeric for track={track_name!r}, "
+                    f"behavior={behavior_name!r}; got dtype={fr.dtype}."
+                )
+
+            n_nan = int(np.isnan(fr).sum())
+            n_posinf = int(np.isposinf(fr).sum())
+            n_neginf = int(np.isneginf(fr).sum())
+
+            if n_nan or n_posinf or n_neginf:
+                raise ValueError(
+                    f"Non-finite firing values for track={track_name!r}, "
+                    f"behavior={behavior_name!r}, shape={fr.shape}: "
+                    f"NaN={n_nan}, +Inf={n_posinf}, -Inf={n_neginf}."
+                )
+
+            n_position.add(fr.shape[2])
+
+            if not np.issubdtype(idx.dtype, np.integer):
+                raise TypeError(
+                    f"Trial index must use an integer dtype for "
+                    f"track={track_name!r}, behavior={behavior_name!r}; "
+                    f"got dtype={idx.dtype}."
+                )
+
+            if len(np.unique(idx)) != len(idx):
+                raise ValueError(
+                    f"Duplicate trial indices for track={track_name!r}, "
+                    f"behavior={behavior_name!r}: {idx}."
+                )
+
+    if len(n_position) != 1:
+        raise ValueError(
+            f"Firing conditions have inconsistent position dimensions: "
+            f"{sorted(n_position)}."
+        )
+
 
 # =============================================================================
 # Raw MAT loading
@@ -700,6 +794,7 @@ def load_raw_mat_data(
     *,
     file_info: dict,
     len_position: int = 160,
+    spk_field: str = "spk",
 ) -> dict:
     """
     Load original MATLAB neuro_type*.mat file and return simplified data.
@@ -721,6 +816,7 @@ def load_raw_mat_data(
     data["index"][tt_idx, bt_idx]:
         np.ndarray with shape:
             (n_trial,)
+
     """
     file_path = Path(file_path)
 
@@ -739,20 +835,20 @@ def load_raw_mat_data(
     temp_s = mat["neuro_type_save"]
     mat_data = mat_struct_to_dict(temp_s)
 
-    for field in ("reward_bin", "response_cell", "spk"):
+    for field in ("reward_bin", "response_cell", spk_field):
         if field not in mat_data:
             raise KeyError(
                 f"MAT file {file_path} is missing required field {field!r}."
             )
 
-    spk = np.asarray(mat_data["spk"], dtype=object)
+    spk = np.asarray(mat_data[spk_field], dtype=object)
 
     if spk.ndim == 1:
         spk = spk[None, :]
 
     if spk.ndim != 2:
         raise ValueError(
-            f"Expected spk to be 2D after loading, got shape {spk.shape}."
+            f"Expected {spk_field} to be 2D after loading, got shape {spk.shape}."
         )
 
     num_neuron, num_track_in_mat = spk.shape
@@ -767,8 +863,8 @@ def load_raw_mat_data(
 
     if num_track_in_mat < len(track_type):
         raise ValueError(
-            f"MAT spk has fewer track columns than expected. "
-            f"spk.shape={spk.shape}, expected track_type={track_type}."
+            f"MAT {spk_field} has fewer track columns than expected. "
+            f"{spk_field}.shape={spk.shape}, expected track_type={track_type}."
         )
 
     firing = np.empty(
@@ -827,6 +923,7 @@ def load_raw_data(
     file_path,
     *,
     len_position: int = 160,
+    spk_field: str = "spk",
 ) -> dict:
     """
     Load raw data and return simplified standard data.
@@ -853,6 +950,7 @@ def load_raw_data(
             file_path,
             file_info=file_info,
             len_position=len_position,
+            spk_field=spk_field,
         )
 
     if suffix in {".pkl", ".pickle"}:

@@ -1,0 +1,1 @@
+circular shuffle should be done before bin merge
